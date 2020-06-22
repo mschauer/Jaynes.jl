@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Contextual domain-specific languages · Jaynes.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="Jaynes.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">Jaynes.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Introduction</a></li><li><a class="tocitem" href="../trace_types/">Trace types</a></li><li class="is-active"><a class="tocitem" href>Contextual domain-specific languages</a></li><li><a class="tocitem" href="../architecture/">Implementation architecture</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Contextual domain-specific languages</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Contextual domain-specific languages</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/femtomc/Jaynes.jl/blob/master/docs/src/contextual_DSLs.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><p>Often times, developers of machine learning systems must construct domain-specific languages to express restrictions which are required by the system, but can&#39;t be expressed solely through the type system. An excellent example is MCMC kernel DSLs (or Gaussian process kernel DSLs) where a set of mathematical restrictions (which cannot be enforced by the compiler) must apply to user code for the code to qualify as valid in the kernel interpretation. Restricted languages which enable efficient (and cohesive) automatic differentiation are another example. </p><p>One of the dominant methodologies in languages with macro systems is to construct the DSL using macros. The library can check at macro-expansion time if the user has utilized syntax or language features which are disallowed by the DSL, returning immediately to the user to express an error or issue. In extreme cases, the user may only be allowed to use other macros (which represent primitive features of the DSL) inside the DSL macro. Because Jaynes aims for a broad standard of composability as a plugin to the compiler, we prefer a complementary viewpoint which &quot;carves&quot; the DSL out of the host language. This viewpoint can also be found in the philosophy of packages such as <a href="https://github.com/FluxML/Zygote.jl">Zygote</a> where the user is allowed to write arbitrary code, but may encounter a runtime error if Zygote is unable to identify and emit pullback code for a method call (i.e. the user has stepped outside the bounds of the language (or set of <code>ChainRules</code>) which the system knows how to differentiate). </p><p>We call our approach to this viewpoint <em>contextual domain-specific languages</em> because the inclusion of any language feature representable by a method call is handled by the interpretation context. The interpretation context contains a &quot;language core&quot; which is a piece of metadata which tells the interpreter what method calls are allowed in the DSL. These cores have a natural set of operations: set intersection is the minimal feature set which is compatible with both languages, where union is the set which covers both. Interpretation without a core is just interpretation of the entire host language in the context - nothing is excluded.</p><p>In our system, these languages are only active for specific contexts (i.e. those associated with the validation of construction of kernels or programming in the graphical model DSL) - so this section is purely optional. These languages are designed to help a user construct a program which is valid according to the assumptions of the domain - but they incur a small runtime cost (equivalent to normal <code>Cassette</code> execution with a call to <code>prehook</code> before <code>overdub</code>). For inference contexts, these language restrictions can be turned on and off by the user.</p><hr/><p>As an example of this idea, here&#39;s a small functional core which performs runtime checks to prevent the use of mutation on mutable structures or key-accessed collections:</p><pre><code class="language-julia">ctx = DomainCtx(metadata = Language(BaseLang()))
+
+mutable struct Foo
+    x::Float64
+end
+
+function foo(z::Float64)
+    z = Foo(10.0)
+    x = 10
+    if x &lt; 15
+        y = 20
+    end
+    y += 1
+    z.x = 10.0
+    return y
+end
+
+# Accepted!
+ret = interpret(ctx, foo, 5.0)
+
+@corrode! BaseLang setfield!
+@corrode! BaseLang setproperty!
+@corrode! BaseLang setindex!
+
+# Rejected!
+ret = interpret(ctx, foo, 5.0)
+
+# ERROR: LoadError: Main.LanguageCores.Jaynes.BaseLangError: setproperty! with Tuple{Main.LanguageCores.Foo,Symbol,Float64} is disallowed in this language.</code></pre><p><code>BaseLang</code> lets all calls through. We corrode <code>BaseLang</code> to prevent calls to <code>setfield!</code>, <code>setproperty!</code>, and <code>setindex!</code>. Note that, at the method level, we can&#39;t prevent re-assignment to variables because assignment is not a method. If we wanted to, we could prevent this using an IR pass. We could extend this to prevent iteration-based control flow:</p><pre><code class="language-julia">function foo(z::Float64)
+    z = Foo(10.0)
+    x = 10
+    for i in 1:10
+        println(i)
+    end
+    if x &lt; 15
+        y = 20
+    end
+    y += 1
+    z.x = 10.0
+    return y
+end
+
+@corrode! BaseLang iterate
+
+# Rejected!
+ret = interpret(ctx, foo, 5.0)
+
+# ERROR: LoadError: Main.LanguageCores.Jaynes.BaseLangError: iterate with Tuple{UnitRange{Int64}} is disallowed in this language.</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../trace_types/">« Trace types</a><a class="docs-footer-nextpage" href="../architecture/">Implementation architecture »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 22 June 2020 02:31">Monday 22 June 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
