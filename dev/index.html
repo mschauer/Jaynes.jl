@@ -51,4 +51,17 @@ println(lmle)</code></pre><p>will produce</p><pre><code class="language-julia"> 
   0.003901 seconds (80.04 k allocations: 4.476 MiB)
 -0.6931471805599454
   0.004302 seconds (80.04 k allocations: 4.476 MiB)
--0.2231435513142106</code></pre><p>which shows that the log marginal likelihood of the data increases as the parameter for the geometric generator increases (towards a value which is ultimately more likely given the data).</p><h2 id="Black-box-extensions"><a class="docs-heading-anchor" href="#Black-box-extensions">Black-box extensions</a><a id="Black-box-extensions-1"></a><a class="docs-heading-anchor-permalink" href="#Black-box-extensions" title="Permalink"></a></h2><p>Jaynes is equipped with the ability to extend the tracer to arbitrary black-box code which the user can provide a <code>logpdf</code> for</p></article></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 1 July 2020 21:33">Wednesday 1 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+-0.2231435513142106</code></pre><p>which shows that the log marginal likelihood of the data increases as the parameter for the geometric generator increases (towards a value which is ultimately more likely given the data).</p><h2 id="Black-box-extensions"><a class="docs-heading-anchor" href="#Black-box-extensions">Black-box extensions</a><a id="Black-box-extensions-1"></a><a class="docs-heading-anchor-permalink" href="#Black-box-extensions" title="Permalink"></a></h2><p>Jaynes is equipped with the ability to extend the tracer to arbitrary black-box code, as long as the user can provide a <code>logpdf</code> for the call:</p><pre><code class="language-julia">geo(p::Float64) = rand(:flip, Bernoulli(p)) ? 0 : 1 + rand(:geo, geo, p)
+@primitive function logpdf(fn::typeof(geo), p, count)
+    println(&quot;Hi!&quot;)
+    return Distributions.logpdf(Geometric(p), count)
+end
+
+
+cl = Jaynes.call(Trace(), rand, :geo, geo, 0.3)
+display(cl.trace; show_values = true)</code></pre><p>will produce</p><pre><code class="language-none">  __________________________________
+
+               Addresses
+
+ geo : 4
+  __________________________________</code></pre></article></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 1 July 2020 21:34">Wednesday 1 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
