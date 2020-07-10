@@ -12,8 +12,9 @@ setindex!(ps::ParameterStore, val, addr) = ps.params[addr] = val
 
 # Custom adjoint.
 function ChainRulesCore.rrule(::typeof(ParameterStore), params)
+    println("ParameterStore")
     ret = ParameterStore(params)
-    pb = store_grad -> (nothing,)
+    pb = store_grad -> (NO_FIELDS, DoesNotExist())
     return ret, pb
 end
 
@@ -83,11 +84,12 @@ read_parameter(ctx::K, params::ParameterStore, addr::Address) where K <: Backpro
 
 # Custom adjoint.
 function ChainRulesCore.rrule(::typeof(read_parameter), ctx, params, addr)
+    println("read_parameter")
     ret = read_parameter(ctx, params, addr)
     fn = param_grad -> begin
-        state_grad = nothing
+        println("read_parameter")
         params_grad = ParameterStore(Dict{Address, Any}(addr => param_grad))
-        (state_grad, params_grad, nothing)
+        (DoesNotExist(), params_grad, DoesNotExist())
     end
     return ret, fn
 end
@@ -105,11 +107,14 @@ end
 # Learnable parameters.
 simulate_call(param_grads, cl::T, args) where T <: CallSite = cl.ret
 
+# Custom adjoint.
 function ChainRulesCore.rrule(::typeof(simulate_call), param_grads, cl, args)
+    println("simulate_call")
     ret = simulate_call(param_grads, cl, args)
     fn = ret_grad -> begin
+        println("simulate_call")
         arg_grads = accumulate_parameter_gradients!(param_grads, cl, ret_grad)
-        (nothing, nothing, arg_grads)
+        (DoesNotExist(), DoesNotExist(), arg_grads)
     end
     return ret, fn
 end
@@ -131,10 +136,12 @@ simulate_choice(choice_grads, choice_selection, cl::T, args) where T <: CallSite
 
 # Custom adjoint.
 function ChainRulesCore.rrule(::typeof(simulate_choice), choice_grads, choice_selection, cl, args)
+    println("simulate_choice")
     ret = simulate_choice(choice_grads, choice_selection, cl, args)
     fn = ret_grad -> begin
+        println("simulate_choice")
         arg_grads, choice_vals, choice_grads = choice_gradients(choice_grads, choice_selection, cl, ret_grad)
-        (nothing, nothing, (choice_vals, choice_grads), arg_grads)
+        (DoesNotExist(), DoesNotExist(), (choice_vals, choice_grads), arg_grads)
     end
     return ret, fn
 end

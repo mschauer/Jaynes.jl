@@ -10,6 +10,7 @@ using Mjolnir: Defaults
 import Mjolnir: trace
 
 # Gradients.
+using ChainRules
 using ChainRulesCore
 using Zygote
 using Flux.Optimise
