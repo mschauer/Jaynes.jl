@@ -13,7 +13,6 @@ import Mjolnir: trace
 using ChainRules
 using ChainRulesCore
 using Zygote
-using Flux.Optimise
 
 # Distributions and differentiable logpdfs.
 using Distributions

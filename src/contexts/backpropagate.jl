@@ -11,7 +11,7 @@ haskey(ps::ParameterStore, addr) = haskey(ps.params, addr)
 setindex!(ps::ParameterStore, val, addr) = ps.params[addr] = val
 
 # Custom adjoint.
-function ChainRulesCore.rrule(::typeof(ParameterStore), params)
+function ChainRulesCore.rrule(::Type{<:ParameterStore}, params)
     println("ParameterStore")
     ret = ParameterStore(params)
     pb = store_grad -> (NO_FIELDS, DoesNotExist())
@@ -168,7 +168,8 @@ function accumulate_parameter_gradients!(param_grads, cl::T, ret_grad) where T <
     end
     blank = ParameterStore()
     _, back = Zygote.pullback(fn, cl.args, blank)
-    arg_grads, ps_grad = back((1.0, ret_grad, 1.0))
+    arg_grads, ps_grad = back((1.0, ret_grad))
+    println(ps_grad)
     if !(ps_grad isa Nothing)
         for (addr, grad) in ps_grad.params
             push!(param_grads, addr, grad)
