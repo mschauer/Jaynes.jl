@@ -1,16 +1,22 @@
 module Jaynes
 
+# Com-pirate stuff.
 using IRTools
 using IRTools: @dynamo, IR, xcall, arguments, insertafter!, recurse!, isexpr, self, argument!, Variable
 using MacroTools
-using Distributions
-using DistributionsAD
-using Zygote
-using Flux.Optimise
 using Mjolnir
 using Mjolnir: Basic, AType, Const, abstract, Multi, @abstract, Partial
 using Mjolnir: Defaults
 import Mjolnir: trace
+
+# Gradients.
+using ChainRulesCore
+using Zygote
+using Flux.Optimise
+
+# Distributions and differentiable logpdfs.
+using Distributions
+using DistributionsAD
 
 # Toplevel importants :)
 abstract type ExecutionContext end

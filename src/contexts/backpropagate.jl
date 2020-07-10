@@ -10,7 +10,12 @@ end
 haskey(ps::ParameterStore, addr) = haskey(ps.params, addr)
 setindex!(ps::ParameterStore, val, addr) = ps.params[addr] = val
 
-Zygote.@adjoint ParameterStore(params) = ParameterStore(params), store_grad -> (nothing,)
+# Custom adjoint.
+function ChainRulesCore.rrule(::typeof(ParameterStore), params)
+    ret = ParameterStore(params)
+    pb = store_grad -> (nothing,)
+    return ret, pb
+end
 
 function +(a::ParameterStore, b::ParameterStore)
     params = Dict{Address, Any}()
@@ -76,7 +81,8 @@ end
 read_parameter(ctx::K, addr::Address) where K <: BackpropagationContext = read_parameter(ctx, ctx.params, addr)
 read_parameter(ctx::K, params::ParameterStore, addr::Address) where K <: BackpropagationContext = ctx.tr.params[addr].val
 
-Zygote.@adjoint function read_parameter(ctx, params, addr)
+# Custom adjoint.
+function ChainRulesCore.rrule(::typeof(read_parameter), ctx, params, addr)
     ret = read_parameter(ctx, params, addr)
     fn = param_grad -> begin
         state_grad = nothing
@@ -97,10 +103,10 @@ end
 # ------------ Call sites ------------ #
 
 # Learnable parameters.
-simulate_call_pullback(param_grads, cl::T, args) where T <: CallSite = cl.ret
+simulate_call(param_grads, cl::T, args) where T <: CallSite = cl.ret
 
-Zygote.@adjoint function simulate_call_pullback(param_grads, cl, args)
-    ret = simulate_call_pullback(param_grads, cl, args)
+function ChainRulesCore.rrule(::typeof(simulate_call), param_grads, cl, args)
+    ret = simulate_call(param_grads, cl, args)
     fn = ret_grad -> begin
         arg_grads = accumulate_parameter_gradients!(param_grads, cl, ret_grad)
         (nothing, nothing, arg_grads)
@@ -115,16 +121,17 @@ end
     #visit!(ctx.visited, addr)
     cl = get_call(ctx.tr, addr)
     param_grads = Gradients()
-    ret = simulate_call_pullback(param_grads, cl, args)
+    ret = simulate_call(param_grads, cl, args)
     ctx.param_grads.tree[addr] = param_grads
     return ret
 end
 
 # Choices.
-simulate_choice_pullback(choice_grads, choice_selection, cl::T, args) where T <: CallSite = cl.ret
+simulate_choice(choice_grads, choice_selection, cl::T, args) where T <: CallSite = cl.ret
 
-Zygote.@adjoint function simulate_choice_pullback(choice_grads, choice_selection, cl, args)
-    ret = simulate_choice_pullback(choice_grads, choice_selection, cl, args)
+# Custom adjoint.
+function ChainRulesCore.rrule(::typeof(simulate_choice), choice_grads, choice_selection, cl, args)
+    ret = simulate_choice(choice_grads, choice_selection, cl, args)
     fn = ret_grad -> begin
         arg_grads, choice_vals, choice_grads = choice_gradients(choice_grads, choice_selection, cl, ret_grad)
         (nothing, nothing, (choice_vals, choice_grads), arg_grads)
@@ -139,7 +146,7 @@ end
     #visit!(ctx.visited, addr)
     cl = get_call(ctx.tr, addr)
     choice_grads = Gradients()
-    ret = simulate_choice_pullback(choice_grads, get_sub(ctx.select, addr), cl, args)
+    ret = simulate_choice(choice_grads, get_sub(ctx.select, addr), cl, args)
     ctx.choice_grads.tree[addr] = choice_grads
     return ret
 end
