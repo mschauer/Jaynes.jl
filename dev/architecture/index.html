@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Architecture · Jaynes.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.png" alt="Jaynes.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">Jaynes.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Introduction</a></li><li><a class="tocitem" href="../concepts/">Concepts</a></li><li><a class="tocitem" href="../modeling_lang/">Modeling language</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li class="is-active"><a class="tocitem" href>Architecture</a><ul class="internal"><li><a class="tocitem" href="#Implementation"><span>Implementation</span></a></li><li><a class="tocitem" href="#Traces"><span>Traces</span></a></li><li class="toplevel"><a class="tocitem" href="#Inference"><span>Inference</span></a></li></ul></li><li><span class="tocitem">Library</span><ul><li><a class="tocitem" href="../contexts/">Execution contexts</a></li><li><a class="tocitem" href="../selection_interface/">Selection interfaces</a></li><li><a class="tocitem" href="../inference/">Inference</a></li><li><a class="tocitem" href="../fmi/">Foreign model interface</a></li><li><a class="tocitem" href="../diff_prog/">Differentiable programming</a></li></ul></li><li><a class="tocitem" href="../related_work/">Related work</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Architecture</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Architecture</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/femtomc/Jaynes.jl/blob/master/docs/src/architecture.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h2 id="Implementation"><a class="docs-heading-anchor" href="#Implementation">Implementation</a><a id="Implementation-1"></a><a class="docs-heading-anchor-permalink" href="#Implementation" title="Permalink"></a></h2><p>Jaynes is organized around a central <code>IRTools</code> <em>dynamo</em></p><pre><code class="language-julia">@dynamo function (mx::ExecutionContext)(a...)
+    ir = IR(a...)
+    ir == nothing &amp;&amp; return
+    recur!(ir)
+    return ir
+end</code></pre><p>which defines how instances of inheritors of <code>ExecutionContext</code> act on function calls. There are a number of such inheritors</p><pre><code class="language-none">HierarchicalTrace
+UnconstrainedGenerateContext
+ConstrainedGenerateContext
+ProposalContext
+UpdateContext
+RegenerateContext
+ScoreContext</code></pre><p>each of which has a special dispatch definition which allows the dynamo to dispatch on <code>rand</code> calls with addressing e.g.</p><pre><code class="language-julia">@inline function (ctx::UnconstrainedGenerateContext)(call::typeof(rand), 
+                                                     addr::T, 
+                                                     d::Distribution{K}) where {T &lt;: Address, K}
+    s = rand(d)
+    ctx.tr.chm[addr] = ChoiceSite(logpdf(d, s), s)
+    return s
+end</code></pre><p>for <code>UnconstrainedGenerateContext</code>. Each of the other contexts define a particular functionality required for inference over probabilistic program traces. </p><h2 id="Traces"><a class="docs-heading-anchor" href="#Traces">Traces</a><a id="Traces-1"></a><a class="docs-heading-anchor-permalink" href="#Traces" title="Permalink"></a></h2><p>The structured representation of traces is also an <code>ExecutionContext</code></p><pre><code class="language-julia">abstract type Trace &lt;: ExecutionContext end
+
+mutable struct HierarchicalTrace &lt;: Trace
+    chm::Dict{Address, RecordSite}
+    score::Float64
+    function HierarchicalTrace()
+        new(Dict{Address, RecordSite}(), 0.0)
+    end
+end</code></pre><p>so usage for unconstrained generation is simple</p><pre><code class="language-julia">using Jaynes
+geo(p::Float64) = rand(:flip, Bernoulli(p)) == 1 ? 0 : 1 + rand(:geo, geo, p)
+tr = Trace()
+tr(geo, 5.0)
+display(tr, show_value = true)</code></pre><p>will produce</p><pre><code class="language-none">  __________________________________
+
+               Addresses
+
+ flip : false
+ :geo =&gt; :flip : true
+  __________________________________</code></pre><h1 id="Inference"><a class="docs-heading-anchor" href="#Inference">Inference</a><a id="Inference-1"></a><a class="docs-heading-anchor-permalink" href="#Inference" title="Permalink"></a></h1><p>To express constraints associated with inference (or unconstrained selections required for MCMC), there is a <code>Selection</code> interface which can be used to communicate constraints to <code>rand</code> sites in compatible execution contexts.</p><pre><code class="language-julia">sel = selection((:flip, true))
+ctx = Generate(Trace(), sel)
+ctx(geo, 0.5)
+display(ctx.tr, show_values = true)</code></pre><p>will produce</p><pre><code class="language-none">  __________________________________
+
+               Addresses
+
+ flip : true
+  __________________________________</code></pre><p>which constrains the execution to select that value for the random choice at address <code>:flip</code>. We can also communicate constraints to inference algorithms</p><pre><code class="language-julia">@time calls, lnw, lmle = Jaynes.importance_sampling(geo, (0.05, ); observations = sel)
+println(lmle)
+@time calls, lnw, lmle = Jaynes.importance_sampling(geo, (0.5, ); observations = sel)
+println(lmle)
+@time calls, lnw, lmle = Jaynes.importance_sampling(geo, (0.8, ); observations = sel)
+println(lmle)</code></pre><p>will produce</p><pre><code class="language-julia">  0.431258 seconds (1.49 M allocations: 78.267 MiB, 4.96% gc time)
+-2.9957322735539904
+  0.003901 seconds (80.04 k allocations: 4.476 MiB)
+-0.6931471805599454
+  0.004302 seconds (80.04 k allocations: 4.476 MiB)
+-0.2231435513142106</code></pre><p>which shows that the log marginal likelihood of the data increases as the parameter for the geometric generator increases (towards a value which is ultimately more likely given the data).</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a><a class="docs-footer-nextpage" href="../contexts/">Execution contexts »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 11 July 2020 07:26">Saturday 11 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
