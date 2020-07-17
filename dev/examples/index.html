@@ -9,26 +9,26 @@ geo(p::Float64) = rand(:flip, Bernoulli(p)) ? 1 : 1 + rand(:geo, geo, p)
 ret, cl = simulate(geo, 0.2)
 display(cl.trace)
 
-end # module</code></pre><h2 id="Bayesian-linear-regression"><a class="docs-heading-anchor" href="#Bayesian-linear-regression">Bayesian linear regression</a><a id="Bayesian-linear-regression-1"></a><a class="docs-heading-anchor-permalink" href="#Bayesian-linear-regression" title="Permalink"></a></h2><pre><code class="language-julia">module BayesianLinearRegression
+end # module</code></pre><h2 id="Bayesian-linear-regression"><a class="docs-heading-anchor" href="#Bayesian-linear-regression">Bayesian linear regression</a><a id="Bayesian-linear-regression-1"></a><a class="docs-heading-anchor-permalink" href="#Bayesian-linear-regression" title="Permalink"></a></h2><p>This example uses the <code>plate</code> special language feature (equivalent to plate notation) to perform IID draws from the <code>Normal</code> specified in the program. This is more concise than a loop, and also allows inference algorithms to utilize efficient operations for updating and regenerating choices.</p><pre><code class="language-julia">module BayesianLinearRegression
 
 using Jaynes
 using Distributions
 
-function bayeslinreg(N::Int)
+function bayesian_linear_regression(N::Int)
     σ = rand(:σ, InverseGamma(2, 3))
     β = rand(:β, Normal(0.0, 1.0))
     y = plate(:y, x -&gt; rand(:draw, Normal(β*x, σ)), [Float64(i) for i in 1 : N])
 end
 
 # Example trace.
-ret, cl = simulate(bayeslinreg, 10)
+ret, cl = simulate(bayesian_linear_regression, 10)
 display(cl.trace)
 
 sel = selection(map(1 : 100) do i
                     (:y =&gt; i =&gt; :draw, Float64(i) + rand())
                 end)
 
-@time ps, ret = importance_sampling(sel, 5000, bayeslinreg, (100, ))
+@time ps, ret = importance_sampling(sel, 5000, bayesian_linear_regression, (100, ))
 
 num_res = 1000
 resample!(ps, num_res)
@@ -99,4 +99,4 @@ end
 
 ps = simulation()
 
-end # module</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../modeling_lang/">« Modeling language</a><a class="docs-footer-nextpage" href="../architecture/">Architecture »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 17 July 2020 04:33">Friday 17 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end # module</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../modeling_lang/">« Modeling language</a><a class="docs-footer-nextpage" href="../architecture/">Architecture »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 17 July 2020 04:36">Friday 17 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
