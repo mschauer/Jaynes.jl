@@ -50,16 +50,16 @@ ScoreContext
 BackpropagateContext</code></pre><p>each of which has a special dispatch definition which allows the dynamo to dispatch on <code>rand</code> calls with addressing. As an example, here&#39;s the interception dispatch inside the <code>GenerateContext</code></p><pre><code class="language-julia">@inline function (ctx::GenerateContext)(call::typeof(rand), 
                                         addr::T, 
                                         d::Distribution{K}) where {T &lt;: Address, K}
+    visit!(ctx, addr)
     if has_query(ctx.select, addr)
         s = get_query(ctx.select, addr)
         score = logpdf(d, s)
-        add_choice!(ctx.tr, addr, ChoiceSite(score, s))
+        add_choice!(ctx, addr, ChoiceSite(score, s))
         increment!(ctx, score)
     else
         s = rand(d)
-        add_choice!(ctx.tr, addr, ChoiceSite(logpdf(d, s), s))
+        add_choice!(ctx, addr, ChoiceSite(logpdf(d, s), s))
     end
-    visit!(ctx.visited, addr)
     return s
 end
 </code></pre><p>so this context records the random choice, as well as performs some bookkeeping which we use for inference. Each of the other contexts define unique interception dispatch to implement functionality required for inference over probabilistic program traces. </p><h2 id="Traces"><a class="docs-heading-anchor" href="#Traces">Traces</a><a id="Traces-1"></a><a class="docs-heading-anchor-permalink" href="#Traces" title="Permalink"></a></h2><p>The structured representation of program execution is a <code>Trace</code></p><pre><code class="language-julia">abstract type Trace end
@@ -73,4 +73,4 @@ end</code></pre><p>Here, I&#39;m showing <code>HierarchicalTrace</code> which is
     fn::Function
     args::J
     ret::K
-end</code></pre><p>This call site is how we represent black box function calls which the user has indicated need to be traced. Other call sites present unique functionality, which (when traced) provide the contexts used for inference with additional information which can speed up certain operations.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a><a class="docs-footer-nextpage" href="../library_api/sites/">Traces, choices, and call sites »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 18 July 2020 21:18">Saturday 18 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><p>This call site is how we represent black box function calls which the user has indicated need to be traced. Other call sites present unique functionality, which (when traced) provide the contexts used for inference with additional information which can speed up certain operations.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a><a class="docs-footer-nextpage" href="../library_api/sites/">Traces, choices, and call sites »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 18 July 2020 21:52">Saturday 18 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
