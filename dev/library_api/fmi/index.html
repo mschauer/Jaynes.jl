@@ -16,4 +16,31 @@ end</code></pre><p>The above program would summarize the trace into a single cho
                Addresses
 
  geo : 42
-  __________________________________</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/femtomc/Jaynes.jl/blob/4095422257918eef7006557c50759c60f9127c49/src/foreign_model_interfaces.jl#L20-L55">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../inference/vi/">« Automatic differentiation variational inference</a><a class="docs-footer-nextpage" href="../diff_prog/">Differentiable programming »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 3 August 2020 17:51">Monday 3 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  __________________________________</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/femtomc/Jaynes.jl/blob/ac9002671e29a72a8bd4de53a6b618df115f2d25/src/foreign_model_interfaces.jl#L19-L54">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Jaynes.load_soss_fmi" href="#Jaynes.load_soss_fmi"><code>Jaynes.load_soss_fmi</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">Jaynes.@load_soss_fmi</code></pre><p><code>@load_soss_fmi</code> loads the <a href="https://github.com/cscherrer/Soss.jl">Soss.jl</a> foreign model interface extension. This allows you to utilize <code>Soss</code> models in your modeling.</p><p>Example:</p><pre><code class="language-julia">Jaynes.@load_soss_fmi()
+
+# A Soss model.
+m = @model σ begin
+    μ ~ Normal()
+    y ~ Normal(μ, σ) |&gt; iid(5)
+end
+
+bar = () -&gt; begin
+    x = rand(:x, Normal(5.0, 1.0))
+    soss_ret = foreign(:foo, m, (σ = x,))
+    return soss_ret
+end</code></pre><p>This interface currently supports all the inference interfaces (e.g. <code>simulate</code>, <code>generate</code>, <code>score</code>, <code>regenerate</code>, <code>update</code>, <code>propose</code>) which means that you can use any of the inference algorithms in the standard inference library.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/femtomc/Jaynes.jl/blob/ac9002671e29a72a8bd4de53a6b618df115f2d25/src/foreign_model_interfaces.jl#L57-L83">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="Jaynes.load_gen_fmi" href="#Jaynes.load_gen_fmi"><code>Jaynes.load_gen_fmi</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">Jaynes.@load_gen_fmi</code></pre><p><code>@load_gen_fmi</code> loads the <a href="https://www.gen.dev/">Gen.jl</a> foreign model interface extension. This allows you to utilize <code>Gen</code> models (in any of Gen&#39;s DSLs) in your modeling.</p><p>Example:</p><pre><code class="language-julia">Jaynes.@load_gen_fmi()
+
+@gen (static) function foo(z::Float64)
+    x = @trace(normal(z, 1.0), :x)
+    y = @trace(normal(x, 1.0), :y)
+    return x
+end
+
+Gen.load_generated_functions()
+
+bar = () -&gt; begin
+    x = rand(:x, Normal(0.0, 1.0))
+    return foreign(:foo, foo, x)
+end
+
+ret, cl = Jaynes.simulate(bar)</code></pre><p>This interface currently supports all the inference interfaces (e.g. <code>simulate</code>, <code>generate</code>, <code>score</code>, <code>regenerate</code>, <code>update</code>, <code>propose</code>) which means that you can use any of the inference algorithms in the standard inference library.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/femtomc/Jaynes.jl/blob/ac9002671e29a72a8bd4de53a6b618df115f2d25/src/foreign_model_interfaces.jl#L86-L115">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../inference/vi/">« Automatic differentiation variational inference</a><a class="docs-footer-nextpage" href="../diff_prog/">Differentiable programming »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 3 August 2020 19:38">Monday 3 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
