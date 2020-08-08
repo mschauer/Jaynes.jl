@@ -1,8 +1,7 @@
 function boomerang(sel::K, 
                    cl::C) where {K <: UnconstrainedSelection, C <: CallSite}
 
-    p_mod_score = get_score(cl)
-    sel_values, choice_grads = get_choice_gradients(sel, cl, 1.0)
+    sel_values = merge(cl, sel)
 
     # TODO: re-factor.
     sel_values_ref = Ref(sel_values)
